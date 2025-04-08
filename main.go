@@ -3,6 +3,7 @@ package main
 import (
 	cntrl "TradeIT/controller"
 	database "TradeIT/database"
+	"TradeIT/models"
 	"TradeIT/services"
 	"fmt"
 
@@ -16,8 +17,9 @@ func main() {
 	if db == nil {
 		fmt.Print("Database error: \n")
 	}
+	models.InitDatabase(db)
 	userService := &services.UserService{}
-	userService.InitService(db)
+	userService.SetDB(db)
 	userController := &cntrl.UserController{}
 	userController.InitUserControllerRoutes(router, *userService)
 	router.Run(":8000")

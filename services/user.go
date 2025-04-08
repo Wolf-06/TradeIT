@@ -1,8 +1,10 @@
 package services
 
 import (
+	"TradeIT/middleware"
 	"TradeIT/models"
 	"fmt"
+	"log"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -18,10 +20,8 @@ type userData struct {
 	Passwd string `json:"password"`
 }
 
-func (u *UserService) InitService(db *gorm.DB) {
+func (u *UserService) SetDB(db *gorm.DB) {
 	u.db = db
-	u.db.AutoMigrate(&models.User{})
-	u.db.AutoMigrate(&models.Credential{})
 }
 
 func (us *UserService) RegisterUserService(c *gin.Context) int {
@@ -51,4 +51,37 @@ func (us *UserService) RegisterUserService(c *gin.Context) int {
 		panic(errr)
 	}
 	return id
+}
+
+func (us *UserService) LoginUserService(c *gin.Context) string {
+	var Cred middleware.LoginCred
+	if err := c.ShouldBindJSON(&Cred); err != nil {
+		log.Fatal("err in binding data to cred: ", err)
+	}
+
+	status, errr := middleware.LoginValidator(us.db, Cred.Email, Cred.Passwd)
+
+	if status && errr == "" {
+		return "login success"
+	} else {
+		return errr
+	}
+}
+
+func (us *UserService) UpdateUserEmailService(c *gin.Context) string {
+	var param middleware.UpdateEmailParameters
+	if err := c.BindJSON(&param); err != nil {
+		log.Fatal("Error in binding updateParameter json ", err)
+	}
+
+	return middleware.EmailUpdater(us.db, param)
+}
+
+func (us *UserService) UpdateUserPasswdService(c *gin.Context) string {
+	var param middleware.UpdatePasswdParameters
+	if err := c.BindJSON(&param); err != nil {
+		log.Fatal("Error in binding updateParameter json ", err)
+	}
+
+	return middleware.PasswdUpdator(us.db, param)
 }

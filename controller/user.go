@@ -12,7 +12,9 @@ type UserController struct {
 
 func (u *UserController) InitUserControllerRoutes(router *gin.Engine, initialisedUserService services.UserService) {
 	router.POST("/register", u.RegisterUser())
-	router.Post("/login", u.LoginUser())
+	router.POST("/login", u.LoginUser())
+	router.PUT("/update/email", u.updateEmail())
+	router.PUT("/update/password", u.updatePasswd())
 	u.userService = initialisedUserService
 }
 
@@ -25,9 +27,25 @@ func (u *UserController) RegisterUser() gin.HandlerFunc {
 }
 
 func (u *UserController) LoginUser() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		ctx.JSON(200, gin.H{
-			"message": "success",
+	return func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"token": u.userService.LoginUserService(c),
+		})
+	}
+}
+
+func (u *UserController) updateEmail() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"token": u.userService.UpdateUserEmailService(c),
+		})
+	}
+}
+
+func (u *UserController) updatePasswd() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"token": u.userService.UpdateUserPasswdService(c),
 		})
 	}
 }
