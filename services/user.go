@@ -59,10 +59,10 @@ func (us *UserService) LoginUserService(c *gin.Context) string {
 		log.Fatal("err in binding data to cred: ", err)
 	}
 
-	status, errr := middleware.LoginValidator(us.db, Cred.Email, Cred.Passwd)
+	status, token, errr := middleware.LoginValidator(us.db, Cred.Email, Cred.Passwd)
 
 	if status && errr == "" {
-		return "login success"
+		return token
 	} else {
 		return errr
 	}

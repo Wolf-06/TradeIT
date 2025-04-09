@@ -26,7 +26,7 @@ type UpdatePasswdParameters struct {
 	NewPasswd string `json:"newPassword"`
 }
 
-func LoginValidator(db *gorm.DB, email string, passwd string) (bool, string) {
+func LoginValidator(db *gorm.DB, email string, passwd string) (bool, string, string) {
 	var Cred models.Credential
 	err := db.Where("email= ?", email).Find(&Cred).Error
 	if err != nil {
@@ -34,11 +34,11 @@ func LoginValidator(db *gorm.DB, email string, passwd string) (bool, string) {
 	}
 
 	if Cred.Email == email && Cred.Passwd == passwd {
-		return true, ""
+		return true, CreateToken(Cred.Id), ""
 	} else if Cred.Email == email && Cred.Passwd != passwd {
-		return false, "check the credentials"
+		return false, "", "check the credentials"
 	} else {
-		return false, "user doesn't exist "
+		return false, "", "user doesn't exist "
 	}
 }
 
