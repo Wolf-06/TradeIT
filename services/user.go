@@ -1,6 +1,7 @@
 package services
 
 import (
+	"TradeIT/database"
 	"TradeIT/middleware"
 	"TradeIT/models"
 	"fmt"
@@ -20,8 +21,10 @@ type userData struct {
 	Passwd string `json:"password"`
 }
 
-func (u *UserService) SetDB(db *gorm.DB) {
-	u.db = db
+func InitUserService() *UserService {
+	return &UserService{
+		db: database.SetDB(),
+	}
 }
 
 func (us *UserService) RegisterUserService(c *gin.Context) int {
@@ -84,4 +87,10 @@ func (us *UserService) UpdateUserPasswdService(c *gin.Context) string {
 	}
 
 	return middleware.PasswdUpdator(us.db, param)
+}
+
+func (us *UserService) GetFundsService(c *gin.Context) float32 {
+	userid, _ := c.Get("userid")
+	x := userid.(float64)
+	return middleware.FundsInfo(us.db, x)
 }

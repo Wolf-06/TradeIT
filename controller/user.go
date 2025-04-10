@@ -11,7 +11,13 @@ type UserController struct {
 	userService services.UserService
 }
 
-func (u *UserController) InitUserControllerRoutes(router *gin.Engine, initialisedUserService services.UserService) {
+func InitUserController() *UserController {
+	return &UserController{
+		userService: *services.InitUserService(),
+	}
+}
+
+func (u *UserController) InitUserControllerRoutes(router *gin.Engine) {
 	router.POST("/register", u.RegisterUser())
 	router.POST("/login", u.LoginUser())
 
@@ -22,8 +28,6 @@ func (u *UserController) InitUserControllerRoutes(router *gin.Engine, initialise
 		protected.PUT("/update/password", u.updatePasswd())
 		protected.GET("/fund", u.getFunds())
 	}
-
-	u.userService = initialisedUserService
 }
 
 func (u *UserController) RegisterUser() gin.HandlerFunc {
@@ -59,7 +63,7 @@ func (u *UserController) updatePasswd() gin.HandlerFunc {
 }
 
 func (u *UserController) getFunds() gin.HandlerFunc {
-	return func(c *context) {
-		c.Json(200, gin.H{"funds": u.userService.GetFundsService(c)})
+	return func(c *gin.Context) {
+		c.JSON(200, gin.H{"funds": u.userService.GetFundsService(c)})
 	}
 }

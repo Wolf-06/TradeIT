@@ -4,7 +4,6 @@ import (
 	cntrl "TradeIT/controller"
 	database "TradeIT/database"
 	"TradeIT/models"
-	"TradeIT/services"
 	"fmt"
 
 	gin "github.com/gin-gonic/gin"
@@ -12,16 +11,15 @@ import (
 
 func main() {
 	fmt.Println("starting")
-	router := gin.Default()
-	db := database.InitDb()
-	if db == nil {
-		fmt.Print("Database error: \n")
-	}
-	models.InitDatabase(db)
-	userService := &services.UserService{}
-	userService.SetDB(db)
-	userController := &cntrl.UserController{}
-	userController.InitUserControllerRoutes(router, *userService)
-	router.Run(":8000")
 
+	router := gin.Default()
+	database.InitDb()
+	models.InitDatabase()
+
+	userController := cntrl.InitUserController()
+	userController.InitUserControllerRoutes(router)
+
+	orderController := cntrl.InitOrderController()
+	orderController.InitOrderRoutes(router)
+	router.Run(":8000")
 }
