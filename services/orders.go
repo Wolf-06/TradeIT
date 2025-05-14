@@ -24,7 +24,7 @@ func InitOrderService() *OrderService {
 func (os *OrderService) CreateOrderService(c *gin.Context) string {
 	var order models.Order
 	if err := c.BindJSON(&order); err != nil {
-		log.Fatalf("Json Binding error: ", err)
+		log.Fatalln("Json Binding error: ", err)
 		return "Error"
 	}
 	return middleware.CreateOrder(os.db, order)

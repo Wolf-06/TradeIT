@@ -27,7 +27,7 @@ type Order struct {
 	Price      float32   `json:"price" gorm:"type:float" validate:"required gt=0"`
 	Quantity   int       `json:"quantity" validate:"required gt=0"`
 	Status     string    `json:"status" validate:"required oneof= executed pending cancelled"`
-	Created_at time.Time `json:"created_at" validate="required"`
+	Created_at time.Time `json:"created_at" validate:"required"`
 }
 
 func InitDatabase() {

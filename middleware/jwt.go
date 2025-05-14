@@ -36,13 +36,13 @@ func VerifyToken() gin.HandlerFunc {
 		}
 		Token, err := jwt.Parse(header, func(Token *jwt.Token) (interface{}, error) {
 			if _, ok := Token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("Invalid token signing method")
+				return nil, fmt.Errorf("invalid token signing method")
 			}
 			return Key, nil
 		})
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid Token"})
-			log.Fatalf("Invalid Token ", err)
+			log.Fatalln("Invalid Token ", err)
 			return
 		}
 
