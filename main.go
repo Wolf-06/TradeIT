@@ -4,12 +4,13 @@ import (
 	cntrl "TradeIT/controller"
 	database "TradeIT/database"
 	"TradeIT/models"
+	"TradeIT/testing"
 	"fmt"
 
 	gin "github.com/gin-gonic/gin"
 )
 
-func main() {
+func main_() {
 	fmt.Println("starting")
 
 	router := gin.Default()
@@ -21,5 +22,6 @@ func main() {
 
 	orderController := cntrl.InitOrderController()
 	orderController.InitOrderRoutes(router)
+	go testing.Test()
 	router.Run(":8000")
 }

@@ -24,10 +24,15 @@ type Order struct {
 	User_id    int       `json:"user_id" validate:"required"`
 	Order_type string    `json:"type" validate:"required, oneof= buy sell"`
 	Stock      string    `json:"stock" validate:"required"`
-	Price      float32   `json:"price" gorm:"type:float" validate:"required gt=0"`
+	Price      float64   `json:"price" gorm:"type:decimal" validate:"required gt=0"`
 	Quantity   int       `json:"quantity" validate:"required gt=0"`
 	Status     string    `json:"status" validate:"required oneof= executed pending cancelled"`
 	Created_at time.Time `json:"created_at" validate:"required"`
+}
+
+type Metadata struct {
+	Order
+	Remq int `json:"quantity" validate:"required gt=0"`
 }
 
 func InitDatabase() {

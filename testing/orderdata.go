@@ -2,28 +2,20 @@ package testing
 
 import (
 	"TradeIT/database"
+	"TradeIT/engine"
+	"TradeIT/middleware"
+	"TradeIT/models"
 	"fmt"
 	"math"
 	"math/rand"
 	"time"
 )
 
-type Order struct {
-	Id         int       `gorm:"PrimaryKey"`
-	User_id    int       `json:"user_id" validate:"required"`
-	Order_type string    `json:"type" validate:"required,oneof=buy sell"`
-	Stock      string    `json:"stock" validate:"required"`
-	Price      float32   `json:"price" validate:"required,gt=0"`
-	Quantity   int       `json:"quantity" validate:"required,gt=0"`
-	Status     string    `json:"status" validate:"required,oneof=executed pending cancelled"`
-	Created_at time.Time `json:"created_at" validate:"required"`
+func roundToTwoDecimal(num float64) float64 {
+	return float64((math.Round(num*100) / 100))
 }
 
-func roundToTwoDecimal(num float64) float32 {
-	return float32(math.Round(num*100) / 100)
-}
-
-func Test() {
+func OrderTest() {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// Initialize database connection
@@ -48,7 +40,8 @@ func Test() {
 		// Create order with random time in the past 30 days
 		createdAt := time.Now().Add(-time.Duration(rand.Intn(30*24)) * time.Hour)
 
-		order := Order{
+		order := models.Order{
+			Id:         100 + i,
 			User_id:    userID,
 			Order_type: orderType,
 			Stock:      stock,
@@ -58,11 +51,16 @@ func Test() {
 			Created_at: createdAt,
 		}
 
-		result := db.Create(&order)
-		if result.Error != nil {
-			fmt.Printf("Error creating order: %v\n", result.Error)
+		result := middleware.CreateOrder(db, order)
+		if result == "Failed" {
+			fmt.Printf("Error creating order")
 		} else {
 			fmt.Printf("Created order ID: %d, Price: %.2f\n", order.Id, order.Price)
 		}
 	}
+}
+
+func Test() {
+	OrderTest()
+	engine.EngineTest()
 }
