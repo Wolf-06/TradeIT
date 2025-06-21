@@ -75,7 +75,7 @@ func (dll *DoublyLinkedList) PushFront(order models.Metadata) {
 	dll.Size++
 }
 
-func (dll *DoublyLinkedList) PushBack(order models.Metadata) {
+func (dll *DoublyLinkedList) PushBack(order models.Metadata) *Node {
 	newNode := &Node{Metadata: order}
 	if dll.Head == nil {
 		dll.Head = newNode
@@ -86,13 +86,35 @@ func (dll *DoublyLinkedList) PushBack(order models.Metadata) {
 		dll.Tail = newNode
 	}
 	dll.Size++
+	return newNode
 }
 
-func (dll *DoublyLinkedList) RemoveFront() {
-	dll.Head = dll.Head.Next
-	dll.Head.Prev = nil
+func (dll *DoublyLinkedList) RemoveNode(node *Node) any {
+	if dll.Head != node && dll.Tail != node {
+		node.Prev.Next = node.Next
+		node.Next.Prev = node.Prev
+		dll.Size--
+		return nil
+	}
+	if dll.Head == node {
+		dll.Head = node.Next
+		if dll.Head != nil {
+			dll.Head.Prev = nil
+		}
+	}
+	if dll.Tail == node {
+		dll.Tail = node.Prev
+		if dll.Head == nil {
+			dll.Tail = nil
+		}
+		if dll.Tail != nil {
+			dll.Tail.Next = nil
+		}
+
+	}
 	dll.Size--
 	if dll.Size == 0 {
-		dll.Tail = nil
+		return true
 	}
+	return nil
 }

@@ -13,9 +13,10 @@ func roundToTwoDecimal(num float64) float64 {
 	return float64((math.Round(num*10) / 10))
 }
 
-func generateOrders(n int) []models.Metadata {
+func generateOrders(n uint64) []models.Metadata {
 	orders := make([]models.Metadata, 0, n)
-	for i := 0; i < n; i++ {
+	var i uint64
+	for i = 0; i < n; i++ {
 		orderType := "buy"
 		if rand.Float64() < 0.5 {
 			orderType = "sell"
@@ -26,7 +27,7 @@ func generateOrders(n int) []models.Metadata {
 			Order: models.Order{
 				Id:         i,
 				User_id:    rand.Intn(1000),
-				Order_type: orderType,
+				Side:       orderType,
 				Stock:      "TEST",
 				Price:      roundToTwoDecimal(price),
 				Quantity:   quantity,

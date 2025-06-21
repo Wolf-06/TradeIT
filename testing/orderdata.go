@@ -1,4 +1,4 @@
-package testing
+package testing_test
 
 import (
 	"TradeIT/database"
@@ -24,8 +24,8 @@ func OrderTest() {
 	stocks := []string{"AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "META", "NVDA", "NFLX", "IBM", "INTC"}
 	statuses := []string{"executed", "pending", "cancelled"}
 	userIDs := []int{6794, 2890}
-
-	for i := 0; i < 20; i++ {
+	var i uint64
+	for i = 0; i < 20; i++ {
 		orderType := "buy"
 		if rand.Intn(2) == 1 {
 			orderType = "sell"
@@ -43,7 +43,7 @@ func OrderTest() {
 		order := models.Order{
 			Id:         100 + i,
 			User_id:    userID,
-			Order_type: orderType,
+			Side:       orderType,
 			Stock:      stock,
 			Price:      roundToTwoDecimal(price), // Use our rounding function
 			Quantity:   quantity,
