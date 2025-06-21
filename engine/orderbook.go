@@ -43,8 +43,12 @@ func (ob *Orderbook) Lock()   { ob.mu.Lock() }   //used while testing
 func (ob *Orderbook) Unlock() { ob.mu.Unlock() } //used while testing
 
 func (ob *Orderbook) InsertOrder(orderData models.Metadata) error {
-	ob.mu.Unlock()
-	defer ob.mu.Lock()
+	ob.mu.Lock()
+	defer ob.mu.Unlock()
+	return ob.internalInsertOrder(orderData)
+}
+
+func (ob *Orderbook) internalInsertOrder(orderData models.Metadata) error {
 	if orderData.Side == "buy" {
 		if _, exists := ob.buy_orders[orderData.Price]; !exists {
 			ob.buy_orders[orderData.Price] = &DoublyLinkedList{}
@@ -124,7 +128,7 @@ func (ob *Orderbook) Matcher(order models.Metadata) {
 			}
 		}
 		if order.Remq > 0 { //adds the order to the orderbook if not filled
-			ob.InsertOrder(order)
+			ob.internalInsertOrder(order)
 		}
 	} else {
 		// Proccessing the sell order
@@ -187,7 +191,7 @@ func (ob *Orderbook) Matcher(order models.Metadata) {
 			}
 		}
 		if order.Remq > 0 {
-			ob.InsertOrder(order)
+			ob.internalInsertOrder(order)
 		}
 
 	}
