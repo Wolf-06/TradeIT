@@ -30,7 +30,6 @@ func TestNormalMatch(t *testing.T) {
 	fmt.Println("Inserted 2")
 	ob.buyCount++
 	ob.Unlock()
-	// Matching engine should fully match both orders
 	ob.Matcher(models.Metadata{Order: models.Order{Id: 2, Side: "buy", Price: 110, Quantity: 10, Status: "pending"}, Remq: 10})
 	assert.Equal(t, int64(1), ob.tradeCount, "one trade should have occurred")
 	assert.False(t, ob.orderTable[1] != nil, "sell order must be removed after fill")
