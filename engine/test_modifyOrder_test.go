@@ -11,12 +11,12 @@ import (
 
 func TestNormalQuantityModification(t *testing.T) {
 	ob := setupOrderbook()
-	ob.Lock()
+	//ob.Lock()
 	ob.InsertOrder(models.Metadata{Order: models.Order{Id: 1, Side: "sell", Price: 100, Quantity: 5, Status: "pending"}, Remq: 5})
 	fmt.Println("Inserted 1")
 	// Insert a buy order at price 110, quantity 10
 	//ob.InsertOrder(models.Metadata{Order: models.Order{Id: 2, Side: "buy", Price: 110, Quantity: 10, Status: "pending"}, Remq: 10})
-	ob.Unlock()
+	//ob.Unlock()
 	// Matching engine should fully match both orders
 	ob.Matcher(models.Metadata{Order: models.Order{Id: 2, Side: "buy", Price: 110, Quantity: 10, Status: "pending"}, Remq: 10})
 	err := ob.ModifyQuantity(2, -5)
@@ -39,9 +39,9 @@ func TestNormalQuantityModification(t *testing.T) {
 
 func TestNormalPriceModification(t *testing.T) {
 	ob := setupOrderbook()
-	ob.Lock()
+	//ob.Lock()
 	ob.InsertOrder(models.Metadata{Order: models.Order{Id: 1, Side: "sell", Price: 100, Quantity: 5, Status: "pending"}, Remq: 5})
-	ob.Unlock()
+	//ob.Unlock()
 	ob.Matcher(models.Metadata{Order: models.Order{Id: 2, Side: "buy", Price: 90, Quantity: 5, Status: "pending"}, Remq: 5})
 	err := ob.ModifyPrice(2, -90)
 	assert.EqualError(t, err, "invalid price (negative or zero price)")
@@ -62,9 +62,9 @@ func TestNormalPriceModification(t *testing.T) {
 
 func TestBothPriceAndQuantityModification(t *testing.T) {
 	ob := setupOrderbook()
-	ob.Lock()
+	//ob.Lock()
 	ob.InsertOrder(models.Metadata{Order: models.Order{Id: 1, Side: "sell", Price: 100, Quantity: 15, Status: "pending"}, Remq: 10})
-	ob.Unlock()
+	//ob.Unlock()
 	ob.Matcher(models.Metadata{Order: models.Order{Id: 2, Side: "buy", Price: 90, Quantity: 10, Status: "pending"}, Remq: 10})
 	err := ob.ModifyPrice(2, 95)
 	assert.NoError(t, err, "price updation logic has issues")

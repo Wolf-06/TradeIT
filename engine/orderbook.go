@@ -10,37 +10,38 @@ import (
 )
 
 type Orderbook struct {
-	orderTable  map[uint64]*Node
-	buy_orders  map[float64]*DoublyLinkedList
-	sell_orders map[float64]*DoublyLinkedList
-	bids_prices MaxHeap
-	asks_prices MinHeap
-	tradeCount  int64
-	buyCount    int64
-	sellCount   int64
-	mu          sync.RWMutex
+	orderTable       map[uint64]*Node
+	marketBuyOrders  DoublyLinkedList
+	marketSellOrders DoublyLinkedList
+	buy_orders       map[float64]*DoublyLinkedList
+	sell_orders      map[float64]*DoublyLinkedList
+	bids_prices      MaxHeap
+	asks_prices      MinHeap
+	tradeCount       int64
+	buyCount         int64
+	sellCount        int64
+	lastTradedPrice  float64
+	mu               sync.RWMutex
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
+//type counter_Heap interface{*MinHeap|*MaxHeap}
 
 func InitOrderBook_() *Orderbook {
 	ob := Orderbook{
-		buy_orders:  make(map[float64]*DoublyLinkedList),
-		sell_orders: make(map[float64]*DoublyLinkedList),
-		orderTable:  make(map[uint64]*Node),
+		buy_orders:       make(map[float64]*DoublyLinkedList),
+		sell_orders:      make(map[float64]*DoublyLinkedList),
+		orderTable:       make(map[uint64]*Node),
+		marketBuyOrders:  DoublyLinkedList{},
+		marketSellOrders: DoublyLinkedList{},
 	}
 	heap.Init(&ob.bids_prices)
 	heap.Init(&ob.asks_prices)
 	return &ob
 }
 
-func (ob *Orderbook) Lock()   { ob.mu.Lock() }   //used while testing
-func (ob *Orderbook) Unlock() { ob.mu.Unlock() } //used while testing
+func (ob *Orderbook) Lock()                { ob.mu.Lock() }   //used while testing
+func (ob *Orderbook) Unlock()              { ob.mu.Unlock() } //used while testing
+func (ob *Orderbook) SetLTP(price float64) { ob.lastTradedPrice = price }
 
 func (ob *Orderbook) InsertOrder(orderData models.Metadata) error {
 	ob.mu.Lock()
@@ -49,33 +50,50 @@ func (ob *Orderbook) InsertOrder(orderData models.Metadata) error {
 }
 
 func (ob *Orderbook) internalInsertOrder(orderData models.Metadata) error {
-	if orderData.Side == "buy" {
-		if _, exists := ob.buy_orders[orderData.Price]; !exists {
-			ob.buy_orders[orderData.Price] = &DoublyLinkedList{}
-			heap.Push(&ob.bids_prices, orderData.Price) // inserts the price in Heap
+
+	if orderData.Order_Type == "market" {
+		if orderData.Side == "buy" {
+			ob.orderTable[orderData.Id] = ob.marketBuyOrders.PushBack(orderData)
+			ob.buyCount++
+		} else if orderData.Side == "sell" {
+			ob.orderTable[orderData.Id] = ob.marketSellOrders.PushBack(orderData)
+			ob.sellCount++
+		} else {
+			return errors.New("invalid order side")
 		}
-		ob.orderTable[orderData.Id] = ob.buy_orders[orderData.Price].PushBack(orderData) // insert order details in buy order list and also stores the nodes reference in the orderTable
-		ob.buyCount++
-		return nil
-	} else if orderData.Side == "sell" {
-		if _, exists := ob.sell_orders[orderData.Price]; !exists {
-			ob.sell_orders[orderData.Price] = &DoublyLinkedList{}
-			heap.Push(&ob.asks_prices, orderData.Price) // inserts the price in Heap
+	} else if orderData.Order_Type == "limit" {
+		if orderData.Side == "buy" {
+			if _, exists := ob.buy_orders[orderData.Price]; !exists {
+				ob.buy_orders[orderData.Price] = &DoublyLinkedList{}
+				heap.Push(&ob.bids_prices, orderData.Price) // inserts the price in Heap
+			}
+			ob.orderTable[orderData.Id] = ob.buy_orders[orderData.Price].PushBack(orderData) // insert order details in buy order list and also stores the nodes reference in the orderTable
+			ob.buyCount++
+		} else if orderData.Side == "sell" {
+			if _, exists := ob.sell_orders[orderData.Price]; !exists {
+				ob.sell_orders[orderData.Price] = &DoublyLinkedList{}
+				heap.Push(&ob.asks_prices, orderData.Price) // inserts the price in Heap
+			}
+			ob.orderTable[orderData.Id] = ob.sell_orders[orderData.Price].PushBack(orderData) //insert order details in buy order list
+			ob.sellCount++
+		} else {
+			return errors.New("invalid order side")
 		}
-		ob.orderTable[orderData.Id] = ob.sell_orders[orderData.Price].PushBack(orderData) //insert order details in buy order list
-		ob.sellCount++
-		return nil
 	} else {
 		return errors.New("invalid order type")
 	}
+	return nil
 }
 
-func (ob *Orderbook) Matcher(order models.Metadata) {
+// limit orders matcher
+func (ob *Orderbook) Matcher_limit(order models.Metadata) {
 	ob.mu.Lock()
 	defer ob.mu.Unlock()
-	if order.Side == "buy" { //buy order
+	if order.Side == "buy" {
 		for ob.asks_prices.Len() > 0 && order.Remq > 0 {
 			bestAsk := ob.asks_prices.Peek()
+			if order.Order_Type == "market" {
+			}
 			if order.Price < bestAsk { //buyers price is
 				break
 			}
@@ -93,26 +111,24 @@ func (ob *Orderbook) Matcher(order models.Metadata) {
 					order.AvgPrice = float64(matchQuantity) * executionPrice
 					ob.tradeCount++
 					if node.Metadata.Remq == 0 {
-						if node.Metadata.Remq == 0 {
-							// remove the node's reference from the orderTable
-							delete(ob.orderTable, node.Metadata.Id)
-							// remove the node from the linked list
-							if node.Prev != nil {
-								node.Prev.Next = node.Next
-							} else {
-								askList.Head = node.Next
-							}
-
-							if node.Next != nil {
-								node.Next.Prev = node.Prev
-							} else {
-								askList.Tail = node.Prev
-							}
-							node.Metadata.AvgPrice = node.Metadata.AvgPrice / float64(node.Metadata.Quantity)
-							askList.Size--
-							ob.sellCount--
-							//send the message to the user that order has been filled
+						// remove the node's reference from the orderTable
+						delete(ob.orderTable, node.Metadata.Id)
+						// remove the node from the linked list
+						if node.Prev != nil {
+							node.Prev.Next = node.Next
+						} else {
+							askList.Head = node.Next
 						}
+
+						if node.Next != nil {
+							node.Next.Prev = node.Prev
+						} else {
+							askList.Tail = node.Prev
+						}
+						node.Metadata.AvgPrice = node.Metadata.AvgPrice / float64(node.Metadata.Quantity)
+						askList.Size--
+						ob.sellCount--
+						//send the message to the user that order has been filled
 					}
 					if order.Remq == 0 {
 						order.AvgPrice = order.AvgPrice / float64(order.Quantity) //finalises the avg price
@@ -148,8 +164,8 @@ func (ob *Orderbook) Matcher(order models.Metadata) {
 					order.Remq -= matchQuantity
 					node.Metadata.Remq -= matchQuantity
 					executionPrice := math.Round(((order.Price+node.Metadata.Price)/2.0)*100) / 100
-					node.Metadata.AvgPrice = float64(matchQuantity) * executionPrice
-					order.AvgPrice = float64(matchQuantity) * executionPrice
+					node.Metadata.AvgPrice += float64(matchQuantity) * executionPrice
+					order.AvgPrice += float64(matchQuantity) * executionPrice
 					ob.tradeCount++
 					//register the trade here
 					//
@@ -183,9 +199,7 @@ func (ob *Orderbook) Matcher(order models.Metadata) {
 					}
 				}
 				if bidList.Size == 0 {
-					if _, exists := ob.buy_orders[bestBid]; exists {
-						delete(ob.buy_orders, bestBid)
-					}
+					delete(ob.buy_orders, bestBid)
 					heap.Pop(&ob.bids_prices)
 				}
 			}
@@ -203,11 +217,149 @@ func (ob *Orderbook) Matcher(order models.Metadata) {
 
 }
 
+// Market and Limit order matchers
+func (ob *Orderbook) Matcher(order models.Metadata) {
+	ob.mu.Lock()
+	defer ob.mu.Unlock()
+	var mainFlag bool
+	var counterMarketOrders *DoublyLinkedList
+	var counterLimitOrders map[float64]*DoublyLinkedList
+	var counterOrderCount *int64
+	var counterMinHeap *MinHeap
+	var counterMaxHeap *MaxHeap
+	var bestCounterPrice float64
+	var orderList *DoublyLinkedList
+	var node *Node
+	orderType := order.Order_Type
+	mainFlag = true
+
+	if order.Side == "buy" {
+		counterMarketOrders = &ob.marketSellOrders
+		counterLimitOrders = ob.sell_orders
+		counterMinHeap = &ob.asks_prices
+		counterOrderCount = &ob.sellCount
+	} else {
+		counterMarketOrders = &ob.marketBuyOrders
+		counterLimitOrders = ob.buy_orders
+		counterMaxHeap = &ob.bids_prices
+		counterOrderCount = &ob.buyCount
+	}
+
+	for mainFlag {
+
+		var flag bool
+		var orderListType string
+		flag = false
+		if counterMarketOrders.Size != 0 {
+			orderList = counterMarketOrders
+			orderListType = "market"
+			flag = true
+		} else if len(counterLimitOrders) != 0 {
+			orderListType = "limit"
+			if order.Side == "buy" {
+
+				bestCounterPrice = counterMinHeap.Peek()
+				if orderType == "limit" && bestCounterPrice > order.Price {
+					break
+				}
+				orderList, flag = counterLimitOrders[bestCounterPrice]
+				if !flag {
+					heap.Pop(counterMinHeap)
+				}
+
+			} else if order.Side == "sell" {
+
+				bestCounterPrice = counterMaxHeap.Peek()
+				if orderType == "limit" && bestCounterPrice < order.Price {
+					break
+				}
+				orderList, flag = counterLimitOrders[bestCounterPrice]
+				if !flag {
+					heap.Pop(counterMaxHeap)
+				}
+
+			}
+		} else if counterMarketOrders.Size == 0 && len(counterLimitOrders) == 0 {
+			break
+		}
+		if !flag {
+			continue
+		} else {
+			for node = orderList.Head; node != nil && order.Remq > 0; node = node.Next {
+				matchQuantity := min(order.Remq, node.Metadata.Remq)
+				order.Remq -= matchQuantity
+				node.Metadata.Remq -= matchQuantity
+				var tradedPrice float64
+
+				if orderType == "market" {
+					if node.Metadata.Order_Type == "limit" {
+						tradedPrice = node.Metadata.Price
+					} else {
+						tradedPrice = ob.lastTradedPrice
+					}
+				} else {
+					if node.Metadata.Order_Type == "market" {
+						tradedPrice = order.Price
+					} else {
+						tradedPrice = math.Round(((order.Price+node.Metadata.Price)/2.0)*100) / 100
+					}
+				}
+
+				order.AvgPrice += tradedPrice * float64(matchQuantity)
+				node.Metadata.AvgPrice += tradedPrice * float64(matchQuantity)
+				ob.lastTradedPrice = tradedPrice
+				ob.tradeCount++
+				//registerTrade to the database
+
+				if node.Metadata.Remq == 0 {
+					// remove the node's reference from the orderTable
+					delete(ob.orderTable, node.Metadata.Id)
+					// remove the node from the linked list
+					if node.Prev != nil {
+						node.Prev.Next = node.Next
+					} else {
+						orderList.Head = node.Next
+					}
+
+					if node.Next != nil {
+						node.Next.Prev = node.Prev
+					} else {
+						orderList.Tail = node.Prev
+					}
+					node.Metadata.AvgPrice = node.Metadata.AvgPrice / float64(node.Metadata.Quantity)
+					orderList.Size--
+					*counterOrderCount--
+					//send the message to the user that the oder has been fulfilled
+				}
+				if order.Remq == 0 {
+					order.AvgPrice = order.AvgPrice / (float64(order.Quantity))
+					delete(ob.orderTable, order.Id)
+					mainFlag = false
+				}
+			}
+			if orderList.Size == 0 && orderListType == "limit" {
+				delete(counterLimitOrders, bestCounterPrice)
+				if order.Side == "buy" {
+					heap.Pop(&ob.asks_prices)
+				} else {
+					heap.Pop(&ob.bids_prices)
+				}
+			}
+		}
+	}
+	if order.Remq > 0 {
+		err := ob.internalInsertOrder(order)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+}
+
 func (ob *Orderbook) DisplayResult() {
 	fmt.Printf("Trades: %d |\nBuyOrders: %d|\nSellOrders: %d|\nTotal: %d", ob.tradeCount, ob.buyCount, ob.sellCount, (ob.tradeCount + ob.sellCount + ob.buyCount))
 	fmt.Println("\nHeap lengths: ")
 	fmt.Printf("bids: %d\nasks: %d", ob.bids_prices.Len(), ob.asks_prices.Len())
-	fmt.Println("")
+	fmt.Printf("\nMarket order \n buy: %d\nsell: %d", ob.marketBuyOrders.Size, ob.marketSellOrders.Size)
 }
 
 func (ob *Orderbook) CancelOrder(orderId uint64) error {
@@ -228,6 +380,7 @@ func (ob *Orderbook) CancelOrder(orderId uint64) error {
 			node.Metadata.Quantity = difference
 			//send the user the message of the partial filled quantity order is success
 			ob.buyCount--
+			delete(ob.orderTable, orderId)
 			return errors.New("order was partially filled,rest of order has been cancelled")
 		}
 		ob.buyCount--
@@ -241,6 +394,7 @@ func (ob *Orderbook) CancelOrder(orderId uint64) error {
 			node.Metadata.Quantity = difference
 			//send the user the message of the partial filled quantity order is success
 			ob.sellCount--
+			delete(ob.orderTable, orderId)
 			return errors.New("order was partially filled,rest of order has been cancelled")
 		}
 		ob.sellCount--

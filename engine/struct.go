@@ -1,6 +1,8 @@
 package engine
 
-import "TradeIT/models"
+import (
+	"TradeIT/models"
+)
 
 // -----------| HEAPS |------------------
 

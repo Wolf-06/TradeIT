@@ -12,7 +12,7 @@ import (
 // setupOrderbook initializes an Orderbook with sample buy and sell orders.
 func SetupOrderbook() *Orderbook {
 	ob := InitOrderBook_()
-	ob.Lock()
+	//ob.UnLock()
 	// Insert a buy order with ID 1 at price 50 for quantity 10.
 	ob.InsertOrder(models.Metadata{
 		Order: models.Order{
@@ -44,7 +44,7 @@ func SetupOrderbook() *Orderbook {
 
 func TestCancelExistingBuyOrder(t *testing.T) {
 	ob := SetupOrderbook()
-	ob.Unlock()
+	//ob.Unlock()
 	err := ob.CancelOrder(1)
 	assert.NoError(t, err, "cancelling existing buy order should not error")
 	_, exists := ob.orderTable[1]
@@ -55,7 +55,7 @@ func TestCancelExistingBuyOrder(t *testing.T) {
 
 func TestCancelExistingSellOrder(t *testing.T) {
 	ob := SetupOrderbook()
-	ob.Unlock()
+	//ob.Unlock()
 	err := ob.CancelOrder(2)
 	assert.NoError(t, err, "cancelling existing sell order should not error")
 	_, exists := ob.orderTable[2]
@@ -66,7 +66,7 @@ func TestCancelExistingSellOrder(t *testing.T) {
 
 func TestCancelNonExistentOrder(t *testing.T) {
 	ob := SetupOrderbook()
-	ob.Unlock()
+	//ob.Unlock()
 	err := ob.CancelOrder(999)
 	expected := errors.New("order has been proceessed or does not exist")
 	assert.EqualError(t, err, expected.Error(), "cancelling non-existent order should return specific error")
