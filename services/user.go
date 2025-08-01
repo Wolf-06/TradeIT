@@ -27,7 +27,7 @@ func InitUserService() *UserService {
 	}
 }
 
-func (us *UserService) RegisterUserService(c *gin.Context) int {
+func (us *UserService) RegisterUserService(c *gin.Context) uint64 {
 	var temp userData
 	if err := c.ShouldBindJSON(&temp); err != nil {
 		fmt.Println(err)

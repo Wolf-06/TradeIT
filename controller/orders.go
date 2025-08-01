@@ -18,18 +18,19 @@ func InitOrderController() *OrderController {
 	}
 }
 
-func (o *OrderController) InitOrderRoutes(router *gin.Engine) {
+func (oc *OrderController) InitOrderRoutes(router *gin.Engine) {
 	protected := router.Group("/order")
 	protected.Use(middleware.VerifyToken())
 	{
-		protected.GET("/", o.GetAllOrders())
-		protected.POST("/sort", o.GetOrders())
+		protected.GET("/", oc.GetAllOrders())
+		protected.POST("/sort", oc.GetOrders())
+		protected.POST("/create", oc.PlaceOrder())
 	}
 }
 
-func (o *OrderController) GetAllOrders() gin.HandlerFunc {
+func (oc *OrderController) GetAllOrders() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		json, err := c.Writer.Write(o.orderService.GetAllOrderService(c))
+		json, err := c.Writer.Write(oc.orderService.GetAllOrderService(c))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"err": "error in json",
@@ -40,15 +41,26 @@ func (o *OrderController) GetAllOrders() gin.HandlerFunc {
 	}
 }
 
-func (o *OrderController) GetOrders() gin.HandlerFunc {
+func (oc *OrderController) GetOrders() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		json, err := c.Writer.Write(o.orderService.GetOrderByParameterService(c))
+		json, err := c.Writer.Write(oc.orderService.GetOrderByParameterService(c))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"err": "error in json",
 			})
 		} else {
 			c.JSON(200, json)
+		}
+	}
+}
+
+func (oc *OrderController) PlaceOrder() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		status := oc.orderService.CreateOrderService(ctx)
+		if !status {
+			ctx.JSON(500, "Failed due to internal Server Error")
+		} else {
+			ctx.JSON(201, "Success")
 		}
 	}
 }

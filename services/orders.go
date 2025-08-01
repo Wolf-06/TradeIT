@@ -3,7 +3,6 @@ package services
 import (
 	"TradeIT/database"
 	"TradeIT/middleware"
-	"TradeIT/models"
 	"fmt"
 	"log"
 
@@ -13,21 +12,23 @@ import (
 
 type OrderService struct {
 	db *gorm.DB
+	op *OrderPool
 }
 
 func InitOrderService() *OrderService {
 	return &OrderService{
 		db: database.SetDB(),
+		op: InitOrderPool(),
 	}
 }
 
-func (os *OrderService) CreateOrderService(c *gin.Context) string {
-	var order models.Order
+func (os *OrderService) CreateOrderService(c *gin.Context) bool {
+	var order = os.op.acquireOrder()
 	if err := c.BindJSON(&order); err != nil {
 		log.Fatalln("Json Binding error: ", err)
-		return "Error"
+		return false
 	}
-	return middleware.CreateOrder(os.db, order)
+	return middleware.CreateOrder(os.db, *order)
 
 }
 

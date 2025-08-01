@@ -11,35 +11,42 @@ import (
 	"gorm.io/gorm"
 )
 
-type Query struct { //used for custom searching the orders
-	Parameter string `json:"parameter"`
-	Value     any    `json:"value"`
-}
-
+// redis connector
 var producer = redis.NewClient(&redis.Options{
 	Addr:     os.Getenv("redis_addr"),
 	Password: os.Getenv("redis_password"),
 	DB:       0,
 })
 
-func CreateOrder(db *gorm.DB, order models.Order) string {
+var orderPool = InitOrderPool() //creates a order Pool
+
+type Query struct { //used for custom searching the orders
+	Parameter string `json:"parameter"`
+	Value     any    `json:"value"`
+}
+
+func CreateOrder(db *gorm.DB, order models.Order) bool {
 	if err := db.Create(&order).Error; err != nil {
 		fmt.Println("Error in creating the order: ", err)
-		return "Failed"
+		return false
 	}
 	key := "order"
-	meta := models.Metadata{Order: order, Remq: order.Quantity}
+	meta := orderPool.acquireOrder()
+
 	details, err := json.Marshal(meta)
 	if err != nil {
 		fmt.Println("Error in marshalling for redis queue: ", err)
-		return "Failed"
+		return false
 	}
+
 	err = producer.LPush(context.Background(), key, details).Err()
 	if err != nil {
 		fmt.Println("Error in pushing to redis queue: ", err)
-		return "Failed"
+		return false
 	}
-	return "Success"
+
+	orderPool.releaseOrder(meta)
+	return true
 }
 
 func GetAllOrders(db *gorm.DB, user_id float64) []byte {

@@ -13,7 +13,7 @@ import (
 
 var Key = []byte(os.Getenv("jwtkey"))
 
-func CreateToken(userid int) string {
+func CreateToken(userid uint64) string {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": userid,

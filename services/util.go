@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func createUserId() int {
+func createUserId() uint64 {
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return random.Intn(9000) + 1000
+	return uint64(random.Intn(9000) + 1000)
 }
