@@ -7,6 +7,6 @@ services:
       - 6000:6000
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PASSWORD=dev123
       - POSTGRES_DB= tradeit
     
