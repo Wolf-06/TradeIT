@@ -52,7 +52,7 @@ func OrderTest() {
 		}
 
 		result := middleware.CreateOrder(db, order)
-		if result == "Failed" {
+		if result == false {
 			fmt.Printf("Error creating order")
 		} else {
 			fmt.Printf("Created order ID: %d, Price: %.2f\n", order.Id, order.Price)

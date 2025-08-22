@@ -19,11 +19,11 @@ func InitOrderPool() *OrderPool {
 	return &op
 }
 
-func (op *OrderPool) acquireOrder() *models.Metadata {
+func (op *OrderPool) AcquireOrder() *models.Metadata {
 	return op.pool.Get().(*models.Metadata)
 }
 
-func (op *OrderPool) releaseOrder(o *models.Metadata) {
+func (op *OrderPool) ReleaseOrder(o *models.Metadata) {
 	*o = models.Metadata{}
 	op.pool.Put(o)
 }

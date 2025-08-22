@@ -13,7 +13,7 @@ import (
 
 // setupOrderbook initializes an empty Orderbook with no orders.
 func setupOrderbook() *Orderbook {
-	ob := InitOrderBook_()
+	ob := InitOrderBook()
 	return ob
 }
 

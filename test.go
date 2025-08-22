@@ -58,7 +58,7 @@ func generateOrders(n uint64) []models.Metadata {
 
 func main_() {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
-	ob := engine.InitOrderBook_()
+	ob := engine.InitOrderBook()
 	orders := generateOrders(1000000) //generate orders
 	fmt.Println("Starting the Matching")
 	start := time.Now()

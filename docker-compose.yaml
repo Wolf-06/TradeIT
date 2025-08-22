@@ -1,6 +1,6 @@
 services:
   db:
-    container_name: tradeit
+    container_name: tradeit_db2
     image: postgres
     user: 1000:1000
     ports:

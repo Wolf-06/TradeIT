@@ -24,6 +24,7 @@ func InitOrderService() *OrderService {
 
 func (os *OrderService) CreateOrderService(c *gin.Context) bool {
 	var order = os.op.acquireOrder()
+	defer os.op.releaseOrder(order)
 	if err := c.BindJSON(&order); err != nil {
 		log.Fatalln("Json Binding error: ", err)
 		return false

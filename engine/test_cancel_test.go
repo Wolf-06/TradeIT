@@ -11,7 +11,7 @@ import (
 
 // setupOrderbook initializes an Orderbook with sample buy and sell orders.
 func SetupOrderbook() *Orderbook {
-	ob := InitOrderBook_()
+	ob := InitOrderBook()
 	//ob.UnLock()
 	// Insert a buy order with ID 1 at price 50 for quantity 10.
 	ob.InsertOrder(models.Metadata{

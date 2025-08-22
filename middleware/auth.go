@@ -17,7 +17,7 @@ type UpdateEmailParameters struct {
 
 type LoginCred struct {
 	Email  string `json:"email"`
-	Passwd string `json:"passwd"`
+	Passwd string `json:"password"`
 }
 
 type UpdatePasswdParameters struct {

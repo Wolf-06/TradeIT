@@ -2,22 +2,26 @@ package engine
 
 import (
 	"TradeIT/models"
-	"sync"
 )
 
 type Ledger struct {
-	ent sync.Map
-	mu  sync.Mutex
+	ent      map[string]*Orderbook
+	ob_count int64
 }
 
-func InitLedger() *Ledger{
-	return &Ledger{}
+func InitLedger() *Ledger {
+	return &Ledger{
+		ent: make(map[string]*Orderbook),
+	}
 }
 
-func (ld *Ledger) InitOrderBook(stock string) {
-	ld.ent.Store(stock,InitOrderBook_())        
-}
-
-func (ld* Ledger) ProcessOrder(order models.Metadata){
-	
+func (ld *Ledger) ProcessOrder(order models.Metadata) error {
+	ob, exists := ld.ent[order.Stock]
+	if !exists {
+		ob = InitOrderBook()
+		ld.ent[order.Stock] = ob
+		ld.ob_count++
+	}
+	err := ob.Matcher(order)
+	return err
 }

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/go-redis/redis/v8"
@@ -19,6 +20,7 @@ func InitEngineClient() {
 func GetEngineClient() *redis.Client {
 	if EngineClient == nil {
 		InitEngineClient()
+		fmt.Println("successfully created the redis client")
 	}
 	return EngineClient
 }

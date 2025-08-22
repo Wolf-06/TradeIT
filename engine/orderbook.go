@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"time"
 )
 
 type Orderbook struct {
@@ -24,9 +25,9 @@ type Orderbook struct {
 	mu               sync.RWMutex
 }
 
-//type counter_Heap interface{*MinHeap|*MaxHeap}
+var tradePool = InitTradePool()
 
-func InitOrderBook_() *Orderbook {
+func InitOrderBook() *Orderbook {
 	ob := Orderbook{
 		buy_orders:       make(map[float64]*DoublyLinkedList),
 		sell_orders:      make(map[float64]*DoublyLinkedList),
@@ -218,7 +219,7 @@ func (ob *Orderbook) Matcher_limit(order models.Metadata) {
 }
 
 // Market and Limit order matchers
-func (ob *Orderbook) Matcher(order models.Metadata) {
+func (ob *Orderbook) Matcher(order models.Metadata) error {
 	ob.mu.Lock()
 	defer ob.mu.Unlock()
 	var mainFlag bool
@@ -309,7 +310,22 @@ func (ob *Orderbook) Matcher(order models.Metadata) {
 				node.Metadata.AvgPrice += tradedPrice * float64(matchQuantity)
 				ob.lastTradedPrice = tradedPrice
 				ob.tradeCount++
-				//registerTrade to the database
+
+				//registering trade
+				trade := tradePool.acquireTrade()
+				trade.Stock, trade.Price, trade.Quantity = order.Stock, tradedPrice, matchQuantity
+				trade.Executed_at = time.Now()
+				if order.Side == "buy" {
+					trade.Buyer, trade.AskOrderID = order.User_id, order.Id
+					trade.Seller, trade.BidOrderID = node.Metadata.User_id, node.Metadata.Id
+				} else {
+					trade.Seller, trade.BidOrderID = order.User_id, order.Id
+					trade.Buyer, trade.AskOrderID = node.Metadata.User_id, node.Metadata.Id
+				}
+				go registerTrades(trade)
+				tradePool.releaseTrade(trade)
+
+				//clearing the node and order if completed
 
 				if node.Metadata.Remq == 0 {
 					// remove the node's reference from the orderTable
@@ -330,10 +346,12 @@ func (ob *Orderbook) Matcher(order models.Metadata) {
 					orderList.Size--
 					*counterOrderCount--
 					//send the message to the user that the oder has been fulfilled
+					go updateOrderStatus(node.Metadata)
 				}
 				if order.Remq == 0 {
 					order.AvgPrice = order.AvgPrice / (float64(order.Quantity))
 					delete(ob.orderTable, order.Id)
+					go updateOrderStatus(order)
 					mainFlag = false
 				}
 			}
@@ -351,8 +369,10 @@ func (ob *Orderbook) Matcher(order models.Metadata) {
 		err := ob.internalInsertOrder(order)
 		if err != nil {
 			fmt.Println(err)
+			return err
 		}
 	}
+	return nil
 }
 
 func (ob *Orderbook) DisplayResult() {

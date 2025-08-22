@@ -18,7 +18,11 @@ var producer = redis.NewClient(&redis.Options{
 	DB:       0,
 })
 
-var orderPool = InitOrderPool() //creates a order Pool
+// var client = redis.NewClient(&redis.Options{
+// 	Addr:     os.Getenv("redis_addr"),
+// 	Password: os.Getenv("redis_password"),
+// 	DB:       0,
+// })
 
 type Query struct { //used for custom searching the orders
 	Parameter string `json:"parameter"`
@@ -31,9 +35,8 @@ func CreateOrder(db *gorm.DB, order models.Order) bool {
 		return false
 	}
 	key := "order"
-	meta := orderPool.acquireOrder()
 
-	details, err := json.Marshal(meta)
+	details, err := json.Marshal(order)
 	if err != nil {
 		fmt.Println("Error in marshalling for redis queue: ", err)
 		return false
@@ -45,7 +48,6 @@ func CreateOrder(db *gorm.DB, order models.Order) bool {
 		return false
 	}
 
-	orderPool.releaseOrder(meta)
 	return true
 }
 
