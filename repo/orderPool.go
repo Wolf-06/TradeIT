@@ -1,4 +1,4 @@
-package middleware
+package repo
 
 import (
 	"TradeIT/models"
@@ -13,17 +13,17 @@ func InitOrderPool() *OrderPool {
 	var op OrderPool
 	op.pool = sync.Pool{
 		New: func() interface{} {
-			return new(models.Metadata)
+			return new(models.Order)
 		},
 	}
 	return &op
 }
 
-func (op *OrderPool) AcquireOrder() *models.Metadata {
-	return op.pool.Get().(*models.Metadata)
+func (op *OrderPool) AcquireOrder() *models.Order {
+	return op.pool.Get().(*models.Order)
 }
 
-func (op *OrderPool) ReleaseOrder(o *models.Metadata) {
-	*o = models.Metadata{}
+func (op *OrderPool) ReleaseOrder(o *models.Order) {
+	*o = models.Order{}
 	op.pool.Put(o)
 }

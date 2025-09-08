@@ -4,6 +4,7 @@ import (
 	cntrl "TradeIT/controller"
 	database "TradeIT/database"
 	"TradeIT/models"
+
 	test "TradeIT/testing"
 	"fmt"
 	"log"
@@ -21,7 +22,7 @@ func main() {
 
 	router := gin.Default()
 	database.InitDb()
-	models.InitDatabase()
+	models.InitTables()
 
 	userController := cntrl.InitUserController()
 	userController.InitUserControllerRoutes(router)

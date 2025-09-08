@@ -53,9 +53,9 @@ func (h *MaxHeap) Peek() float64 {
 //---------DOUBLY-LINKED-LIST-------------
 
 type Node struct {
-	Metadata models.Metadata
-	Next     *Node
-	Prev     *Node
+	Order_ models.Order
+	Next   *Node
+	Prev   *Node
 }
 
 type DoublyLinkedList struct {
@@ -64,8 +64,8 @@ type DoublyLinkedList struct {
 	Size int
 }
 
-func (dll *DoublyLinkedList) PushFront(order models.Metadata) {
-	newNode := &Node{Metadata: order}
+func (dll *DoublyLinkedList) PushFront(order models.Order) {
+	newNode := &Node{Order_: order}
 	if dll.Head == nil {
 		dll.Head = newNode
 		dll.Tail = newNode
@@ -77,8 +77,8 @@ func (dll *DoublyLinkedList) PushFront(order models.Metadata) {
 	dll.Size++
 }
 
-func (dll *DoublyLinkedList) PushBack(order models.Metadata) *Node {
-	newNode := &Node{Metadata: order}
+func (dll *DoublyLinkedList) PushBack(order models.Order) *Node {
+	newNode := &Node{Order_: order}
 	if dll.Head == nil {
 		dll.Head = newNode
 		dll.Tail = newNode

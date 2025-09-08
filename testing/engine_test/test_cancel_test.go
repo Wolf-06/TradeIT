@@ -1,6 +1,7 @@
-package engine
+package engine_test
 
 import (
+	"TradeIT/engine"
 	"TradeIT/models"
 	"errors"
 	"fmt"
@@ -10,12 +11,10 @@ import (
 )
 
 // setupOrderbook initializes an Orderbook with sample buy and sell orders.
-func SetupOrderbook() *Orderbook {
-	ob := InitOrderBook()
-	//ob.UnLock()
-	// Insert a buy order with ID 1 at price 50 for quantity 10.
-	ob.InsertOrder(models.Metadata{
-		Order: models.Order{
+func SetupOrderbook() *engine.Orderbook {
+	ob := engine.InitOrderBook()
+	ob.InsertOrder(models.Order{
+		MetaOrder: models.MetaOrder{
 			Id:       1,
 			Side:     "buy",
 			Price:    50,
@@ -24,11 +23,8 @@ func SetupOrderbook() *Orderbook {
 		},
 		Remq: 10,
 	})
-	ob.buyCount++
-
-	// Insert a sell order with ID 2 at price 75 for quantity 5.
-	ob.InsertOrder(models.Metadata{
-		Order: models.Order{
+	ob.InsertOrder(models.Order{
+		MetaOrder: models.MetaOrder{
 			Id:       2,
 			Side:     "sell",
 			Price:    75,
@@ -37,7 +33,6 @@ func SetupOrderbook() *Orderbook {
 		},
 		Remq: 5,
 	})
-	ob.sellCount++
 	fmt.Println("lock")
 	return ob
 }
@@ -47,9 +42,9 @@ func TestCancelExistingBuyOrder(t *testing.T) {
 	//ob.Unlock()
 	err := ob.CancelOrder(1)
 	assert.NoError(t, err, "cancelling existing buy order should not error")
-	_, exists := ob.orderTable[1]
+	_, exists := ob.GetOrderTable()[1]
 	assert.False(t, exists, "orderTable must not contain cancelled buy order")
-	_, priceExists := ob.buy_orders[50]
+	_, priceExists := ob.GetBuyOrders()[50]
 	assert.False(t, priceExists, "buy_orders map should remove price level when empty")
 }
 
@@ -58,9 +53,9 @@ func TestCancelExistingSellOrder(t *testing.T) {
 	//ob.Unlock()
 	err := ob.CancelOrder(2)
 	assert.NoError(t, err, "cancelling existing sell order should not error")
-	_, exists := ob.orderTable[2]
+	_, exists := ob.GetOrderTable()[2]
 	assert.False(t, exists, "orderTable must not contain cancelled sell order")
-	_, priceExists := ob.sell_orders[75]
+	_, priceExists := ob.GetSellOrders()[75]
 	assert.False(t, priceExists, "sell_orders map should remove price level when empty")
 }
 

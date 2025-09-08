@@ -19,7 +19,7 @@ type Credential struct {
 	Token  string
 }
 
-type Order struct {
+type MetaOrder struct {
 	Id         uint64    `json:"orderid" gorm:"PrimaryKey"`
 	User_id    int       `json:"user_id" validate:"required"`
 	Order_Type string    `json:"orderType" validate:"required"`
@@ -32,8 +32,8 @@ type Order struct {
 	Created_at time.Time `json:"created_at" validate:"required"`
 }
 
-type Metadata struct {
-	Order
+type Order struct {
+	MetaOrder
 	Remq int `json:"rem_quantity" validate:"required gt=0"`
 }
 
@@ -49,9 +49,9 @@ type TradeDetails struct {
 	Executed_at time.Time `json:"execution_time"`
 }
 
-func InitDatabase() {
+func InitTables() {
 	database.DB.AutoMigrate(User{})
 	database.DB.AutoMigrate(Credential{})
-	database.DB.AutoMigrate(Metadata{})
+	database.DB.AutoMigrate(Order{})
 	database.DB.AutoMigrate(TradeDetails{})
 }

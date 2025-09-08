@@ -64,3 +64,14 @@ func (oc *OrderController) PlaceOrder() gin.HandlerFunc {
 		}
 	}
 }
+
+func (oc *OrderController) CancelOrder() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		err := oc.orderService.CancelOrderService(ctx)
+		if err != nil {
+			ctx.JSON(500, "Unable to Cancel order: "+err.Error())
+		} else {
+			ctx.JSON(201, "Order has been successfully cancelled")
+		}
+	}
+}

@@ -2,7 +2,7 @@ package services
 
 import (
 	"TradeIT/database"
-	"TradeIT/middleware"
+	"TradeIT/repo"
 	"fmt"
 	"log"
 
@@ -29,22 +29,26 @@ func (os *OrderService) CreateOrderService(c *gin.Context) bool {
 		log.Fatalln("Json Binding error: ", err)
 		return false
 	}
-	return middleware.CreateOrder(os.db, *order)
-
+	return repo.CreateOrder(os.db, *order)
 }
 
 func (os *OrderService) GetAllOrderService(c *gin.Context) []byte {
 	user_id, _ := c.Get("userid")
-	json := middleware.GetAllOrders(os.db, user_id.(float64))
+	json := repo.GetAllOrders(os.db, user_id.(float64))
 	return json
 }
 
 func (os *OrderService) GetOrderByParameterService(c *gin.Context) []byte {
-	var Query middleware.Query
+	var Query repo.Query
 	user_id, _ := c.Get("userid")
 	if err := c.BindJSON(&Query); err != nil {
 		fmt.Println("Error in binding JSON: ", err)
 	}
-	json := middleware.GetOrders(os.db, user_id.(float64), Query)
+	json := repo.GetOrders(os.db, user_id.(float64), Query)
 	return json
+}
+
+func (os *OrderService) CancelOrderService(c *gin.Context) error {
+	order_id, _ := c.Get("orderid")
+	return repo.CancelOrder(os.db, (order_id.(uint64)))
 }

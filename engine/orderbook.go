@@ -25,6 +25,16 @@ type Orderbook struct {
 	mu               sync.RWMutex
 }
 
+// Exported getters and incrementers for testing
+func (ob *Orderbook) GetTradeCount() int64                         { return ob.tradeCount }
+func (ob *Orderbook) GetOrderTable() map[uint64]*Node              { return ob.orderTable }
+func (ob *Orderbook) GetBuyOrders() map[float64]*DoublyLinkedList  { return ob.buy_orders }
+func (ob *Orderbook) GetBuyCount() int64                           { return ob.buyCount }
+func (ob *Orderbook) GetSellCount() int64                          { return ob.sellCount }
+func (ob *Orderbook) IncBuyCount()                                 { ob.buyCount++ }
+func (ob *Orderbook) IncSellCount()                                { ob.sellCount++ }
+func (ob *Orderbook) GetSellOrders() map[float64]*DoublyLinkedList { return ob.sell_orders }
+
 var tradePool = InitTradePool()
 
 func InitOrderBook() *Orderbook {
@@ -44,13 +54,13 @@ func (ob *Orderbook) Lock()                { ob.mu.Lock() }   //used while testi
 func (ob *Orderbook) Unlock()              { ob.mu.Unlock() } //used while testing
 func (ob *Orderbook) SetLTP(price float64) { ob.lastTradedPrice = price }
 
-func (ob *Orderbook) InsertOrder(orderData models.Metadata) error {
+func (ob *Orderbook) InsertOrder(orderData models.Order) error {
 	ob.mu.Lock()
 	defer ob.mu.Unlock()
 	return ob.internalInsertOrder(orderData)
 }
 
-func (ob *Orderbook) internalInsertOrder(orderData models.Metadata) error {
+func (ob *Orderbook) internalInsertOrder(orderData models.Order) error {
 
 	if orderData.Order_Type == "market" {
 		if orderData.Side == "buy" {
@@ -87,7 +97,7 @@ func (ob *Orderbook) internalInsertOrder(orderData models.Metadata) error {
 }
 
 // limit orders matcher
-func (ob *Orderbook) Matcher_limit(order models.Metadata) {
+func (ob *Orderbook) Matcher_limit(order models.Order) {
 	ob.mu.Lock()
 	defer ob.mu.Unlock()
 	if order.Side == "buy" {
@@ -104,16 +114,16 @@ func (ob *Orderbook) Matcher_limit(order models.Metadata) {
 				heap.Pop(&ob.asks_prices)
 			} else {
 				for node := askList.Head; node != nil && order.Remq > 0; node = node.Next {
-					matchQuantity := min(node.Metadata.Remq, order.Remq)
+					matchQuantity := min(node.Order_.Remq, order.Remq)
 					order.Remq -= matchQuantity
-					node.Metadata.Remq -= matchQuantity
-					executionPrice := math.Round(((order.Price+node.Metadata.Price)/2.0)*100) / 100
-					node.Metadata.AvgPrice = float64(matchQuantity) * executionPrice
+					node.Order_.Remq -= matchQuantity
+					executionPrice := math.Round(((order.Price+node.Order_.Price)/2.0)*100) / 100
+					node.Order_.AvgPrice = float64(matchQuantity) * executionPrice
 					order.AvgPrice = float64(matchQuantity) * executionPrice
 					ob.tradeCount++
-					if node.Metadata.Remq == 0 {
+					if node.Order_.Remq == 0 {
 						// remove the node's reference from the orderTable
-						delete(ob.orderTable, node.Metadata.Id)
+						delete(ob.orderTable, node.Order_.Id)
 						// remove the node from the linked list
 						if node.Prev != nil {
 							node.Prev.Next = node.Next
@@ -126,7 +136,7 @@ func (ob *Orderbook) Matcher_limit(order models.Metadata) {
 						} else {
 							askList.Tail = node.Prev
 						}
-						node.Metadata.AvgPrice = node.Metadata.AvgPrice / float64(node.Metadata.Quantity)
+						node.Order_.AvgPrice = node.Order_.AvgPrice / float64(node.Order_.Quantity)
 						askList.Size--
 						ob.sellCount--
 						//send the message to the user that order has been filled
@@ -161,19 +171,19 @@ func (ob *Orderbook) Matcher_limit(order models.Metadata) {
 			} else {
 				for node := bidList.Head; node != nil && order.Remq > 0; node = node.Next {
 					//trade occurs
-					matchQuantity := min(order.Remq, node.Metadata.Remq)
+					matchQuantity := min(order.Remq, node.Order_.Remq)
 					order.Remq -= matchQuantity
-					node.Metadata.Remq -= matchQuantity
-					executionPrice := math.Round(((order.Price+node.Metadata.Price)/2.0)*100) / 100
-					node.Metadata.AvgPrice += float64(matchQuantity) * executionPrice
+					node.Order_.Remq -= matchQuantity
+					executionPrice := math.Round(((order.Price+node.Order_.Price)/2.0)*100) / 100
+					node.Order_.AvgPrice += float64(matchQuantity) * executionPrice
 					order.AvgPrice += float64(matchQuantity) * executionPrice
 					ob.tradeCount++
 					//register the trade here
 					//
-					if node.Metadata.Remq == 0 { //buyer order is fullfilled and node has become stale
-						if node.Metadata.Remq == 0 {
+					if node.Order_.Remq == 0 { //buyer order is fullfilled and node has become stale
+						if node.Order_.Remq == 0 {
 							// remove the node's reference from the orderTable
-							delete(ob.orderTable, node.Metadata.Id)
+							delete(ob.orderTable, node.Order_.Id)
 							// remove the node from the linked list
 							if node.Prev != nil {
 								node.Prev.Next = node.Next
@@ -186,7 +196,7 @@ func (ob *Orderbook) Matcher_limit(order models.Metadata) {
 							} else {
 								bidList.Tail = node.Prev
 							}
-							node.Metadata.AvgPrice = node.Metadata.AvgPrice / float64(node.Metadata.Quantity)
+							node.Order_.AvgPrice = node.Order_.AvgPrice / float64(node.Order_.Quantity)
 							bidList.Size--
 							ob.buyCount--
 							//send the message to the user that the order has been filled
@@ -219,7 +229,7 @@ func (ob *Orderbook) Matcher_limit(order models.Metadata) {
 }
 
 // Market and Limit order matchers
-func (ob *Orderbook) Matcher(order models.Metadata) error {
+func (ob *Orderbook) Matcher(order models.Order) error {
 	ob.mu.Lock()
 	defer ob.mu.Unlock()
 	var mainFlag bool
@@ -247,20 +257,24 @@ func (ob *Orderbook) Matcher(order models.Metadata) error {
 	}
 
 	for mainFlag {
-
+		fmt.Println(order.Id, "reached the matcher is inside the main loop")
 		var flag bool
 		var orderListType string
 		flag = false
+		fmt.Println(order)
 		if counterMarketOrders.Size != 0 {
 			orderList = counterMarketOrders
 			orderListType = "market"
 			flag = true
+			fmt.Println(flag)
 		} else if len(counterLimitOrders) != 0 {
+			fmt.Println("inside the limit section")
 			orderListType = "limit"
 			if order.Side == "buy" {
 
 				bestCounterPrice = counterMinHeap.Peek()
 				if orderType == "limit" && bestCounterPrice > order.Price {
+					fmt.Println("Breaking")
 					break
 				}
 				orderList, flag = counterLimitOrders[bestCounterPrice]
@@ -272,6 +286,7 @@ func (ob *Orderbook) Matcher(order models.Metadata) error {
 
 				bestCounterPrice = counterMaxHeap.Peek()
 				if orderType == "limit" && bestCounterPrice < order.Price {
+					fmt.Println("Breaking")
 					break
 				}
 				orderList, flag = counterLimitOrders[bestCounterPrice]
@@ -287,27 +302,29 @@ func (ob *Orderbook) Matcher(order models.Metadata) error {
 			continue
 		} else {
 			for node = orderList.Head; node != nil && order.Remq > 0; node = node.Next {
-				matchQuantity := min(order.Remq, node.Metadata.Remq)
+
+				fmt.Println("Matching Order in matcher")
+				matchQuantity := min(order.Remq, node.Order_.Remq)
 				order.Remq -= matchQuantity
-				node.Metadata.Remq -= matchQuantity
+				node.Order_.Remq -= matchQuantity
 				var tradedPrice float64
 
 				if orderType == "market" {
-					if node.Metadata.Order_Type == "limit" {
-						tradedPrice = node.Metadata.Price
+					if node.Order_.Order_Type == "limit" {
+						tradedPrice = node.Order_.Price
 					} else {
 						tradedPrice = ob.lastTradedPrice
 					}
 				} else {
-					if node.Metadata.Order_Type == "market" {
+					if node.Order_.Order_Type == "market" {
 						tradedPrice = order.Price
 					} else {
-						tradedPrice = math.Round(((order.Price+node.Metadata.Price)/2.0)*100) / 100
+						tradedPrice = math.Round(((order.Price+node.Order_.Price)/2.0)*100) / 100
 					}
 				}
 
 				order.AvgPrice += tradedPrice * float64(matchQuantity)
-				node.Metadata.AvgPrice += tradedPrice * float64(matchQuantity)
+				node.Order_.AvgPrice += tradedPrice * float64(matchQuantity)
 				ob.lastTradedPrice = tradedPrice
 				ob.tradeCount++
 
@@ -317,19 +334,23 @@ func (ob *Orderbook) Matcher(order models.Metadata) error {
 				trade.Executed_at = time.Now()
 				if order.Side == "buy" {
 					trade.Buyer, trade.AskOrderID = order.User_id, order.Id
-					trade.Seller, trade.BidOrderID = node.Metadata.User_id, node.Metadata.Id
+					trade.Seller, trade.BidOrderID = node.Order_.User_id, node.Order_.Id
 				} else {
 					trade.Seller, trade.BidOrderID = order.User_id, order.Id
-					trade.Buyer, trade.AskOrderID = node.Metadata.User_id, node.Metadata.Id
+					trade.Buyer, trade.AskOrderID = node.Order_.User_id, node.Order_.Id
 				}
-				go registerTrades(trade)
-				tradePool.releaseTrade(trade)
+				fmt.Println("Sent to trade register")
+				fmt.Println("Trade:\n", trade)
+				//registers the trade and releases the trade to objectPool back
+				go func(trade *models.TradeDetails) {
+					registerTrades(trade)
+					tradePool.releaseTrade(trade)
+				}(trade)
 
 				//clearing the node and order if completed
-
-				if node.Metadata.Remq == 0 {
+				if node.Order_.Remq == 0 {
 					// remove the node's reference from the orderTable
-					delete(ob.orderTable, node.Metadata.Id)
+					delete(ob.orderTable, node.Order_.Id)
 					// remove the node from the linked list
 					if node.Prev != nil {
 						node.Prev.Next = node.Next
@@ -342,16 +363,16 @@ func (ob *Orderbook) Matcher(order models.Metadata) error {
 					} else {
 						orderList.Tail = node.Prev
 					}
-					node.Metadata.AvgPrice = node.Metadata.AvgPrice / float64(node.Metadata.Quantity)
+					node.Order_.AvgPrice = node.Order_.AvgPrice / float64(node.Order_.Quantity)
 					orderList.Size--
 					*counterOrderCount--
 					//send the message to the user that the oder has been fulfilled
-					go updateOrderStatus(node.Metadata)
+					go updateOrderStatusExecuted(node.Order_)
 				}
 				if order.Remq == 0 {
 					order.AvgPrice = order.AvgPrice / (float64(order.Quantity))
 					delete(ob.orderTable, order.Id)
-					go updateOrderStatus(order)
+					go updateOrderStatusExecuted(order)
 					mainFlag = false
 				}
 			}
@@ -366,6 +387,7 @@ func (ob *Orderbook) Matcher(order models.Metadata) error {
 		}
 	}
 	if order.Remq > 0 {
+		fmt.Println("inserting order")
 		err := ob.internalInsertOrder(order)
 		if err != nil {
 			fmt.Println(err)
@@ -387,41 +409,52 @@ func (ob *Orderbook) CancelOrder(orderId uint64) error {
 	defer ob.mu.Unlock()
 	node, exists := ob.orderTable[orderId]
 	if !exists {
-		return errors.New("order has been proceessed or does not exist")
+		if checkTrade(orderId) {
+			return errors.New("order has been executed")
+		} else {
+			cancellation[orderId] = struct{}{}
+			return errors.New("order not reached the orderbook")
+		}
 	}
-	difference := node.Metadata.Quantity - node.Metadata.Remq
-	if node.Metadata.Side == "buy" {
-		sig := ob.buy_orders[node.Metadata.Price].RemoveNode(node)
+	difference := node.Order_.Quantity - node.Order_.Remq
+	switch node.Order_.Side {
+	case "buy":
+		sig := ob.buy_orders[node.Order_.Price].RemoveNode(node)
 		if sig != nil {
-			delete(ob.buy_orders, node.Metadata.Price) // deletes the entry of linkedlist in the map
+			delete(ob.buy_orders, node.Order_.Price) // deletes the entry of linkedlist in the map
 		}
 		if difference != 0 {
-			node.Metadata.Remq = 0
-			node.Metadata.Quantity = difference
+			node.Order_.Remq = 0
+			node.Order_.Quantity = difference
+			node.Order_.AvgPrice = node.Order_.AvgPrice / float64(node.Order_.Quantity)
 			//send the user the message of the partial filled quantity order is success
 			ob.buyCount--
 			delete(ob.orderTable, orderId)
+			updateOrderStatusUpdated(node.Order_)
 			return errors.New("order was partially filled,rest of order has been cancelled")
 		}
 		ob.buyCount--
-	} else if node.Metadata.Side == "sell" {
-		sig := ob.sell_orders[node.Metadata.Price].RemoveNode(node)
+	case "sell":
+		sig := ob.sell_orders[node.Order_.Price].RemoveNode(node)
 		if sig != nil {
-			delete(ob.sell_orders, node.Metadata.Price)
+			delete(ob.sell_orders, node.Order_.Price)
 		}
 		if difference != 0 {
-			node.Metadata.Remq = 0
-			node.Metadata.Quantity = difference
+			node.Order_.Remq = 0
+			node.Order_.Quantity = difference
+			node.Order_.AvgPrice = node.Order_.AvgPrice / float64(node.Order_.Quantity)
 			//send the user the message of the partial filled quantity order is success
 			ob.sellCount--
 			delete(ob.orderTable, orderId)
+			updateOrderStatusUpdated(node.Order_)
 			return errors.New("order was partially filled,rest of order has been cancelled")
 		}
 		ob.sellCount--
-	} else {
+	default:
 		return errors.New("unsupported order type")
 	}
 	delete(ob.orderTable, orderId) //deletes the node and order entry from the ordertable
+	updateOrderStatusCancelled(node.Order_)
 	return nil
 }
 
@@ -435,24 +468,24 @@ func (ob *Orderbook) ModifyQuantity(orderId uint64, newQuantity int) error {
 	if newQuantity <= 0 {
 		return errors.New("invalid quantity (negative/zero quantity)")
 	}
-	difference := newQuantity - (order_node.Metadata.Quantity - order_node.Metadata.Remq)
+	difference := newQuantity - (order_node.Order_.Quantity - order_node.Order_.Remq)
 
 	if difference < 0 { //Partially filled more than than newQuantity
 		return errors.New("order has been partially filled and quantity can't be decreased ")
 	} else if difference == 0 { //order has just completed and rest of the order is not to be filled
-		if order_node.Metadata.Side == "buy" {
+		if order_node.Order_.Side == "buy" {
 
-		} else if order_node.Metadata.Side == "sell" {
-			sig := ob.sell_orders[order_node.Metadata.Price].RemoveNode(order_node)
+		} else if order_node.Order_.Side == "sell" {
+			sig := ob.sell_orders[order_node.Order_.Price].RemoveNode(order_node)
 			if sig != nil {
-				delete(ob.sell_orders, order_node.Metadata.Price)
+				delete(ob.sell_orders, order_node.Order_.Price)
 			}
 			ob.sellCount--
 		}
-		order_node.Metadata.Quantity = newQuantity
+		order_node.Order_.Quantity = newQuantity
 	} else {
-		order_node.Metadata.Quantity = newQuantity
-		order_node.Metadata.Remq = difference
+		order_node.Order_.Quantity = newQuantity
+		order_node.Order_.Remq = difference
 	}
 	return nil
 }
@@ -467,29 +500,29 @@ func (ob *Orderbook) ModifyPrice(orderId uint64, newPrice float64) error {
 	if newPrice <= 0 {
 		return errors.New("invalid price (negative or zero price)")
 	}
-	if newPrice == order_node.Metadata.Price {
+	if newPrice == order_node.Order_.Price {
 		return nil
 	}
-	if order_node.Metadata.Side == "buy" {
-		sig := ob.buy_orders[order_node.Metadata.Price].RemoveNode(order_node)
+	if order_node.Order_.Side == "buy" {
+		sig := ob.buy_orders[order_node.Order_.Price].RemoveNode(order_node)
 		if sig != nil {
-			delete(ob.buy_orders, order_node.Metadata.Price) // deletes the entry of linkedlist in the map
+			delete(ob.buy_orders, order_node.Order_.Price) // deletes the entry of linkedlist in the map
 		}
 		ob.buyCount--
 
-	} else if order_node.Metadata.Side == "sell" {
-		sig := ob.sell_orders[order_node.Metadata.Price].RemoveNode(order_node)
+	} else if order_node.Order_.Side == "sell" {
+		sig := ob.sell_orders[order_node.Order_.Price].RemoveNode(order_node)
 		if sig != nil {
-			delete(ob.sell_orders, order_node.Metadata.Price)
+			delete(ob.sell_orders, order_node.Order_.Price)
 		}
 		ob.sellCount--
 	} else {
 		return errors.New("invalid order side")
 	}
 	delete(ob.orderTable, orderId)
-	order_node.Metadata.Price = newPrice
+	order_node.Order_.Price = newPrice
 	ob.Unlock()
-	ob.Matcher(order_node.Metadata)
+	ob.Matcher(order_node.Order_)
 	ob.Lock()
 	return nil
 }
