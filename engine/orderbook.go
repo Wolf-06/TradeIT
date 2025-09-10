@@ -407,6 +407,7 @@ func (ob *Orderbook) DisplayResult() {
 func (ob *Orderbook) CancelOrder(orderId uint64) error {
 	ob.mu.Lock()
 	defer ob.mu.Unlock()
+	fmt.Println("Reached the matcher for cancellation")
 	node, exists := ob.orderTable[orderId]
 	if !exists {
 		if checkTrade(orderId) {
@@ -455,6 +456,7 @@ func (ob *Orderbook) CancelOrder(orderId uint64) error {
 	}
 	delete(ob.orderTable, orderId) //deletes the node and order entry from the ordertable
 	updateOrderStatusCancelled(node.Order_)
+	fmt.Println("---Order Cancelled---")
 	return nil
 }
 

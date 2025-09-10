@@ -62,13 +62,17 @@ func (engine *OrderEngine) ProcessOrderQueue() {
 }
 
 func (engine *OrderEngine) ProcessCancellationQueue() {
+	fmt.Println("---Starting the Cancellation Queue---")
 	for {
-		//recieves the orders that are too be
-		queueData, err := engine.mod_redisClient.BLPop(context.Background(), 0, "cancel").Result()
+		//recieves the orders that are too be cancelled.
+		fmt.Println("Waiting for the cancellation request.")
+		queueData, err := engine.mod_redisClient.BLPop(context.Background(), 0, "CancelQueue").Result()
+		fmt.Println("Recieved Order")
 		if err != nil {
 			log.Println("Error in processing the cancellation queue: ", err)
 			continue
 		}
+		fmt.Println(queueData)
 		//data is tranformed to the required types
 		data := strings.Split(string(queueData[1]), ":")
 		orderid, _ := strconv.ParseUint(data[0], 10, 64)
@@ -80,7 +84,7 @@ func (engine *OrderEngine) ProcessCancellationQueue() {
 	}
 }
 
-func EngineTest() {
-	engine := InitOrderEngine()
-	engine.ProcessOrderQueue()
-}
+// func EngineTest() {
+// 	engine := InitOrderEngine()
+// 	engine.ProcessOrderQueue()
+// }

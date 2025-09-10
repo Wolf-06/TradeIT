@@ -20,10 +20,13 @@ func setupTestDBAndEngine() {
 	}
 	database.InitDb()
 	testOrderEngine = engine.InitOrderEngine()
+	go testOrderEngine.ProcessCancellationQueue()
+	go testOrderEngine.ProcessOrderQueue()
 }
 
 func createTestOrder(userID int, stock, side string, price float64, quantity int) models.MetaOrder {
 	return models.MetaOrder{
+		Id:         1001,
 		User_id:    userID,
 		Order_Type: "limit",
 		Side:       side,

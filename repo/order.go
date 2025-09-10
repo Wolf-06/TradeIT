@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
@@ -26,13 +27,13 @@ var ord_producer = redis.NewClient(&redis.Options{
 var mod_producer = redis.NewClient(&redis.Options{
 	Addr:     os.Getenv("redis_addr"),
 	Password: os.Getenv("redis_password"),
-	DB:       1,
+	DB:       0,
 })
 
 var mod_client = redis.NewClient(&redis.Options{
 	Addr:     os.Getenv("redis_addr"),
 	Password: os.Getenv("redis_password"),
-	DB:       1,
+	DB:       2,
 })
 
 type Query struct {
@@ -96,23 +97,25 @@ func GetOrders(db *gorm.DB, user_id float64, query Query) []byte {
 }
 
 func CancelOrder(db *gorm.DB, order_id uint64) error {
-	key := "cancel"
+	key := "CancelQueue"
 	order := orderPool.AcquireOrder()
 
 	if result := db.Where("id=?", order_id).Find(&order); result.Error != nil {
 		log.Println("error in fetching data from order database for cancelling order id: ", order_id, "\nError: ", result.Error)
 		return errors.New("internal error")
 	}
-	value := string(order_id) + ":" + order.Stock
+	id_str := strconv.FormatUint(order_id, 10)
+	value := id_str + ":" + order.Stock
+	fmt.Println(value)
 	if err := mod_producer.RPush(context.Background(), key, value).Err(); err != nil {
 		log.Println("Error in publishing a request to cancel order with id: ", order_id, "\nError: ", err)
 		return errors.New("internal error")
 	}
 
-	key = key + ":" + string(order_id)
-	status, err := mod_client.BLPop(context.Background(), 10, key).Result()
+	key = key + ":" + id_str
+	status, err := mod_client.BLPop(context.Background(), 0, key).Result()
 	if err != nil {
-		log.Println("Error in getting the cancellation status from the order with ")
+		log.Println("Error in getting the cancellation status from the order")
 	}
 	if (status[1] == "nil") || status[1] == "order not reached the orderbook" {
 		return nil

@@ -2,7 +2,6 @@ package testing
 
 import (
 	"TradeIT/database"
-	"TradeIT/engine"
 	"TradeIT/models"
 	"TradeIT/repo"
 	"log"
@@ -91,6 +90,6 @@ func GenerateAndLodgeOrders() {
 }
 
 func Test() {
-	GenerateAndLodgeOrders()
-	engine.EngineTest()
+	// 	GenerateAndLodgeOrders()
+	// 	engine.EngineTest()
 }

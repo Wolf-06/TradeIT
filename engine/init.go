@@ -24,8 +24,3 @@ func GetEngineClient(db int) *redis.Client {
 	}
 	return EngineClient
 }
-
-func custom(a, b int) {
-	var mt = make(map[string]string)
-	fmt.Println(mt)
-}
